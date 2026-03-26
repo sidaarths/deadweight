@@ -3,9 +3,14 @@ import { Ecosystem, ManifestType, ECOSYSTEM_MANIFEST_MAP } from '@/types/ecosyst
 
 describe('Ecosystem', () => {
   it('has all six supported ecosystems', () => {
-    expect(Object.values(Ecosystem)).toEqual([
-      'nodejs', 'python', 'dotnet', 'rust', 'golang', 'java'
-    ])
+    const values = Object.values(Ecosystem)
+    expect(values).toHaveLength(6)
+    expect(values).toContain('nodejs')
+    expect(values).toContain('python')
+    expect(values).toContain('dotnet')
+    expect(values).toContain('rust')
+    expect(values).toContain('golang')
+    expect(values).toContain('java')
   })
 
   it('has manifest types for each ecosystem', () => {

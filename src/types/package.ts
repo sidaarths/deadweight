@@ -7,14 +7,15 @@ export interface Maintainer {
 }
 
 export interface RegistryMetadata {
-  maintainers: Maintainer[]
+  maintainers: readonly Maintainer[]
   lastPublishDate: Date | null
   weeklyDownloads: number | null
   license: string | null
   repositoryUrl: string | null
   description: string | null
-  homepage?: string | null
-  deprecated?: string | null
+  // These are genuinely optional — not all registries expose them
+  homepage: string | null | undefined
+  deprecated: string | null | undefined
 }
 
 export interface Package {
@@ -26,7 +27,7 @@ export interface Package {
 }
 
 export interface DependencyNode extends Package {
-  dependencies: DependencyNode[]
+  readonly dependencies: readonly DependencyNode[]
   depth: number
   /** true when this exact version appears elsewhere in the tree (for dedup detection) */
   isDuplicate?: boolean
@@ -39,5 +40,5 @@ export interface DependencyTree {
   totalDirect: number
   totalTransitive: number
   resolvedAt: Date
-  warnings?: string[]
+  readonly warnings?: readonly string[]
 }

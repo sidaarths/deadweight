@@ -23,7 +23,9 @@ export const FlagAbandonedSchema = manifestInput.extend({
 })
 
 export const GetLicenseConflictsSchema = manifestInput.extend({
-  projectLicense: z.string().optional(),
+  // Caller should pass a valid SPDX identifier (e.g. "MIT", "GPL-3.0-only")
+  // Phase 2 will add spdx-correct validation here
+  projectLicense: z.string().min(1).optional(),
 })
 
 export const SuggestConsolidationsSchema = manifestInput
@@ -34,7 +36,7 @@ export const GetHealthReportSchema = manifestInput.extend({
 
 export const CompareAlternativeSchema = z.object({
   packageName: z.string().min(1),
-  ecosystem: z.nativeEnum(Ecosystem),
+  ecosystem: z.enum(Object.values(Ecosystem) as [Ecosystem, ...Ecosystem[]]),
 })
 
 export const GetEcosystemSummarySchema = manifestInput

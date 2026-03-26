@@ -1,11 +1,13 @@
-export enum Ecosystem {
-  nodejs = 'nodejs',
-  python = 'python',
-  dotnet = 'dotnet',
-  rust = 'rust',
-  golang = 'golang',
-  java = 'java',
-}
+// Use const object instead of enum: tree-shakeable, JSON-safe, Zod-compatible
+export const Ecosystem = {
+  nodejs: 'nodejs',
+  python: 'python',
+  dotnet: 'dotnet',
+  rust: 'rust',
+  golang: 'golang',
+  java: 'java',
+} as const
+export type Ecosystem = typeof Ecosystem[keyof typeof Ecosystem]
 
 export type ManifestType =
   | 'package.json' | 'package-lock.json' | 'yarn.lock' | 'pnpm-lock.yaml'

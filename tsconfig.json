@@ -1,8 +1,8 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "ESNext",
-    "moduleResolution": "bundler",
+    "module": "Node16",
+    "moduleResolution": "node16",
     "lib": ["ES2022"],
     "outDir": "dist",
     "rootDir": "src",
@@ -13,6 +13,9 @@
     "sourceMap": true,
     "esModuleInterop": true,
     "resolveJsonModule": true,
+    // tsup's DTS plugin injects baseUrl internally when resolving paths aliases.
+    // This silences the TS6 deprecation warning that tsup itself triggers.
+    // Remove once tsup fixes https://github.com/egoist/tsup/issues/953
     "ignoreDeprecations": "6.0",
     "paths": {
       "@/*": ["./src/*"]

@@ -3,17 +3,17 @@ import type { RiskSignal, RiskScore } from './risk.js'
 import type { Ecosystem } from './ecosystem.js'
 
 export interface HealthReport {
-  critical: RiskSignal[]
-  warning: RiskSignal[]
-  advisory: RiskSignal[]
+  readonly critical: readonly RiskSignal[]
+  readonly warning: readonly RiskSignal[]
+  readonly advisory: readonly RiskSignal[]
   score: RiskScore
-  topActions: string[]
+  readonly topActions: readonly string[]
   generatedAt: Date
 }
 
 export interface Consolidation {
   category: string
-  packages: Package[]
+  readonly packages: readonly Package[]
   recommendation: string
   reason: string
   estimatedSizeSavingsBytes: number | null
@@ -40,5 +40,5 @@ export interface EcosystemSummary {
   criticalCount: number
   warningCount: number
   advisoryCount: number
-  topActions: string[]
+  readonly topActions: readonly string[]
 }

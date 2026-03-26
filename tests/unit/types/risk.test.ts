@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { RiskSeverity, type RiskSignal, type RiskScore } from '@/types/risk'
+import { RiskSeverity, RISK_SIGNAL_TYPES, type RiskSignal, type RiskScore } from '@/types/risk'
 import { Ecosystem } from '@/types/ecosystem'
 
 describe('Risk types', () => {
@@ -34,17 +34,16 @@ describe('Risk types', () => {
     expect(score.license).toBe(0)
   })
 
-  it('RiskSignal type values cover all expected categories', () => {
-    const validTypes: RiskSignal['type'][] = [
-      'single_maintainer',
-      'abandoned',
-      'license_conflict',
-      'consolidation',
-      'vulnerability',
-      'deprecated',
-      'no_repository',
-    ]
-    // Just checks the type is exhaustive enough for expected use cases
-    expect(validTypes).toHaveLength(7)
+  it('RISK_SIGNAL_TYPES covers all expected categories', () => {
+    // Checks against the authoritative const array — adding a type without updating
+    // this test will cause a failure, ensuring the test stays in sync
+    expect(RISK_SIGNAL_TYPES).toContain('single_maintainer')
+    expect(RISK_SIGNAL_TYPES).toContain('abandoned')
+    expect(RISK_SIGNAL_TYPES).toContain('license_conflict')
+    expect(RISK_SIGNAL_TYPES).toContain('consolidation')
+    expect(RISK_SIGNAL_TYPES).toContain('vulnerability')
+    expect(RISK_SIGNAL_TYPES).toContain('deprecated')
+    expect(RISK_SIGNAL_TYPES).toContain('no_repository')
+    expect(RISK_SIGNAL_TYPES).toHaveLength(7)
   })
 })
