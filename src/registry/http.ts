@@ -109,7 +109,12 @@ export function createHttpClient(options: HttpClientOptions): HttpClient {
 
       // Authenticated requests bypass cache: credential-scoped responses must not
       // be served to callers that present different (or no) credentials.
-      const isAuthenticated = 'Authorization' in (init.headers ?? {})
+      // Handle both plain-object headers and the Headers class.
+      const h = init.headers
+      const isAuthenticated =
+        h instanceof Headers
+          ? h.has('Authorization')
+          : typeof h === 'object' && h !== null && 'Authorization' in h
       const cacheKey = `http:${url}`
 
       if (!isAuthenticated) {

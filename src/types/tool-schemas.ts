@@ -1,10 +1,13 @@
 import { z } from 'zod'
 import { Ecosystem } from './ecosystem.js'
 
+// 10 MB upper bound — orders of magnitude larger than any real manifest file
+const MAX_CONTENT_BYTES = 10_000_000
+
 // Helper for tools that accept manifest input — exactly one of path or content
 const manifestInput = z.object({
   path: z.string().min(1).optional(),
-  content: z.string().min(1).optional(),
+  content: z.string().min(1).max(MAX_CONTENT_BYTES).optional(),
 }).refine(
   (data) => !!(data.path ?? data.content) && !(data.path && data.content),
   { message: 'Provide exactly one of: path or content' }

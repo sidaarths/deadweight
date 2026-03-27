@@ -148,8 +148,8 @@ tests/
 
 ---
 
-### Phase 2 — HTTP Layer, Caching, Config
-**Branch:** `phase-2/http-cache-config`
+### Phase 2 — HTTP Layer, Caching, Config ✅
+**Branch:** `phase-2/http-cache-config` | **PR:** #2
 
 Files: `src/config.ts`, `src/registry/cache.ts`, `src/registry/http.ts`, `src/registry/base.ts`
 
@@ -164,8 +164,8 @@ Steps:
 
 ---
 
-### Phase 3 — Node.js End-to-End + Tool 1
-**Branch:** `phase-3/nodejs-e2e`
+### Phase 3 — Node.js End-to-End + Tool 1 ✅
+**Branch:** `phase-3/nodejs-e2e` | **PR:** #4
 
 Files: `src/parsers/detect.ts`, `src/parsers/base.ts`, `src/parsers/nodejs/parser.ts`, `src/registry/npm.ts`, `src/analysis/tree-resolver.ts`, `src/server.ts`, `src/index.ts`, `src/tools/analyze-dependency-tree.ts`
 
@@ -178,7 +178,7 @@ Steps:
 6. `server.ts` — MCP server, stdio transport, tool registration pattern
 7. `src/index.ts` — entry point: load config, init cache, start server
 8. `tools/analyze-dependency-tree.ts` — Tool 1: accepts `{ path?, content?, includeDevDependencies? }`
-9. Fixtures + integration test
+9. Fixtures + integration tests (186 tests, 99% statement coverage)
 
 **Deliverable:** `deadweight` pointable at a Node.js project in Claude Desktop.
 

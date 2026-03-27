@@ -4,6 +4,10 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
+    // Tests stub globalThis.fetch; running files concurrently causes cross-file
+    // mock bleed. Sequential file execution eliminates this without affecting
+    // test isolation within a file (each test has its own beforeEach/afterEach).
+    fileParallelism: false,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov'],
