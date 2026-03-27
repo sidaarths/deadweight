@@ -1,5 +1,4 @@
-import type { Ecosystem } from '../types/index.js'
-import type { RegistryMetadata, Maintainer } from '../types/index.js'
+import type { Ecosystem, RegistryMetadata, Maintainer } from '../types/index.js'
 
 export interface RegistryClient {
   readonly ecosystem: Ecosystem

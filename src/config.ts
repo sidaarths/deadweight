@@ -18,6 +18,12 @@ export const DEFAULT_CONFIG = {
   rateLimitPerSecond: 10,
 } as const
 
+/**
+ * Loads and validates configuration from environment variables.
+ * Falls back to DEFAULT_CONFIG values for optional settings.
+ * @throws {ZodError} if DEADWEIGHT_CACHE_TTL or DEADWEIGHT_RATE_LIMIT are non-numeric,
+ *   zero, or negative.
+ */
 export function loadConfig(): Config {
   const raw = {
     githubToken: process.env.GITHUB_TOKEN,
