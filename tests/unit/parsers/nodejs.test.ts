@@ -97,10 +97,26 @@ describe('NodejsParser', () => {
       expect(result.resolvedVersions.get('@esbuild/aix-ppc64')).toBe('0.21.5')
     })
 
-    it('emits no warnings for a valid bun.lock', async () => {
+    it('emits a warning when root workspace has no runtime deps', async () => {
       const content = readFileSync(join(FIXTURES, 'bun.lock'), 'utf-8')
       const result = await parser.parse(content, '/project/bun.lock')
-      expect(result.warnings).toHaveLength(0)
+      expect(result.warnings.some(w => w.includes('includeDevDependencies'))).toBe(true)
+    })
+
+    it('excludes workspace packages from resolvedVersions', async () => {
+      const content = readFileSync(join(FIXTURES, 'bun.lock'), 'utf-8')
+      const result = await parser.parse(content, '/project/bun.lock')
+      expect(result.resolvedVersions.has('@heist/client')).toBe(false)
+      expect(result.resolvedVersions.has('@heist/server')).toBe(false)
+    })
+
+    it('excludes sub-path specifiers from resolvedVersions', async () => {
+      const content = readFileSync(join(FIXTURES, 'bun.lock'), 'utf-8')
+      const result = await parser.parse(content, '/project/bun.lock')
+      // sub-path specifiers like "chalk/supports-color" should not appear
+      for (const name of result.resolvedVersions.keys()) {
+        if (!name.startsWith('@')) expect(name).not.toContain('/')
+      }
     })
 
     it('throws a helpful error for bun.lockb binary format', async () => {

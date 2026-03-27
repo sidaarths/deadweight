@@ -102,28 +102,54 @@ export class NodejsParser implements ManifestParser {
     let rootName: string | undefined
     let rootVersion: string | undefined
 
-    // workspaces[""] is the root workspace
+    // Collect workspace package names to exclude from npm resolution.
+    // workspace:* packages are local monorepo packages — not on the public registry.
+    const workspaceNames = new Set<string>()
+
+    // workspaces[""] is the root workspace; other keys are sub-packages
     const workspaces = obj['workspaces'] as Record<string, unknown> | undefined
-    if (workspaces && typeof workspaces[''] === 'object' && workspaces[''] !== null) {
-      const root = workspaces[''] as Record<string, unknown>
-      rootName = typeof root['name'] === 'string' ? root['name'] : undefined
-      rootVersion = typeof root['version'] === 'string' ? root['version'] : undefined
-      for (const [name, range] of Object.entries((root['dependencies'] ?? {}) as Record<string, string>)) {
-        dependencies.set(name, range)
-      }
-      for (const [name, range] of Object.entries((root['devDependencies'] ?? {}) as Record<string, string>)) {
-        devDependencies.set(name, range)
+    if (workspaces) {
+      for (const [wsKey, wsEntry] of Object.entries(workspaces)) {
+        if (typeof wsEntry !== 'object' || wsEntry === null) continue
+        const ws = wsEntry as Record<string, unknown>
+        const wsName = typeof ws['name'] === 'string' ? ws['name'] : undefined
+
+        if (wsKey === '') {
+          // Root workspace — extract as project identity and direct deps
+          rootName = wsName
+          rootVersion = typeof ws['version'] === 'string' ? ws['version'] : undefined
+          for (const [name, range] of Object.entries((ws['dependencies'] ?? {}) as Record<string, string>)) {
+            if (!String(range).startsWith('workspace:')) dependencies.set(name, range)
+          }
+          for (const [name, range] of Object.entries((ws['devDependencies'] ?? {}) as Record<string, string>)) {
+            if (!String(range).startsWith('workspace:')) devDependencies.set(name, range)
+          }
+        }
+
+        // Track workspace package name so we can skip it during npm resolution
+        if (wsName) workspaceNames.add(wsName)
       }
     }
 
+    const warnings: string[] = []
+
     // packages: { "name": [resolution, deps, meta, checksum] }
     // The key is the package name; the resolution string at index 0 is "name@version".
-    // Extract the version from the resolution string using the last @ separator.
+    // Skip workspace packages (local monorepo) and sub-path specifiers (chalk/supports-color).
     const packages = obj['packages'] as Record<string, unknown> | undefined
     if (packages) {
       for (const [name, entry] of Object.entries(packages)) {
+        // Skip sub-path specifiers (e.g. "chalk/supports-color") — not standalone npm packages
+        if (!name.startsWith('@') && name.includes('/')) continue
+        // Skip known workspace packages
+        if (workspaceNames.has(name)) continue
+
         if (!Array.isArray(entry) || typeof entry[0] !== 'string') continue
         const resolution = entry[0] as string // e.g. "@esbuild/aix-ppc64@0.21.5"
+
+        // Skip workspace-protocol entries (e.g. "@heist/client@workspace:packages/client")
+        if (resolution.includes('@workspace:')) continue
+
         const lastAt = resolution.lastIndexOf('@')
         if (lastAt > 0) {
           const version = resolution.slice(lastAt + 1)
@@ -132,12 +158,19 @@ export class NodejsParser implements ManifestParser {
       }
     }
 
+    // Warn when the monorepo root has no runtime deps — user likely wants includeDevDependencies
+    if (dependencies.size === 0 && devDependencies.size > 0) {
+      warnings.push(
+        'Root workspace has no runtime dependencies — pass includeDevDependencies: true to include dev dependencies in the analysis',
+      )
+    }
+
     return {
       ecosystem: Ecosystem.nodejs,
       dependencies,
       devDependencies,
       resolvedVersions,
-      warnings: [],
+      warnings,
       rootName,
       rootVersion,
     }
