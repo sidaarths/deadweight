@@ -1,4 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { createCache, type Cache } from '../../../src/registry/cache.js'
 
 describe('Cache', () => {
@@ -56,5 +59,26 @@ describe('Cache', () => {
 
   it('close does not throw', async () => {
     await expect(cache.close()).resolves.not.toThrow()
+  })
+})
+
+describe('Cache (file-backed)', () => {
+  let tmpDir: string
+  let cache: Cache
+
+  beforeEach(async () => {
+    tmpDir = mkdtempSync(join(tmpdir(), 'deadweight-test-'))
+    cache = await createCache({ dir: tmpDir, ttlSeconds: 60 })
+  })
+
+  afterEach(async () => {
+    await cache.close()
+    rmSync(tmpDir, { recursive: true, force: true })
+  })
+
+  it('creates the cache directory and stores/retrieves a value', async () => {
+    await cache.set('file:key', { ok: true })
+    const result = await cache.get<{ ok: boolean }>('file:key')
+    expect(result).toEqual({ ok: true })
   })
 })

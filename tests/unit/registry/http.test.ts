@@ -143,10 +143,23 @@ describe('HttpClient', () => {
   })
 
   describe('JSON parse error handling', () => {
-    it('throws a descriptive error when response body is not valid JSON', async () => {
+    it('throws a descriptive error when response body is not valid JSON (Error instance)', async () => {
       mockFetch.mockResolvedValueOnce(
         new Response('<html>Error page</html>', { status: 200 })
       )
+
+      await expect(
+        client.fetchJson(TEST_URL)
+      ).rejects.toThrow(/Failed to parse JSON/)
+    })
+
+    it('throws a descriptive error when json() rejects with a non-Error value', async () => {
+      // Simulate a json() rejection with a plain string (covers the String(err) branch)
+      const badResponse = new Response('', { status: 200 })
+      Object.defineProperty(badResponse, 'json', {
+        value: () => Promise.reject('string rejection'),
+      })
+      mockFetch.mockResolvedValueOnce(badResponse)
 
       await expect(
         client.fetchJson(TEST_URL)
