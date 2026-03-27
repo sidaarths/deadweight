@@ -45,6 +45,15 @@ function npmRegistryPath(name: string): string {
   return encodeURIComponent(name)
 }
 
+function isHttpsUrl(url: string | null): url is string {
+  if (!url) return false
+  try {
+    return new URL(url).protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
 export class NpmRegistryClient implements RegistryClient {
   readonly ecosystem = Ecosystem.nodejs
 
@@ -69,15 +78,15 @@ export class NpmRegistryClient implements RegistryClient {
       url: m.url,
     }))
 
+    const rawRepoUrl = pkg.repository?.url?.replace(/^git\+/, '').replace(/\.git$/, '') ?? null
+    const repositoryUrl = isHttpsUrl(rawRepoUrl) ? rawRepoUrl : null
+
     return {
       maintainers,
       lastPublishDate,
       weeklyDownloads: null, // fetched separately via getDownloadCount
       license: pkg.license ?? null,
-      repositoryUrl:
-        pkg.repository?.url
-          ?.replace(/^git\+/, '')
-          .replace(/\.git$/, '') ?? null,
+      repositoryUrl,
       description: pkg.description ?? null,
       homepage: pkg.homepage ?? null,
       deprecated: pkg.deprecated ?? null,

@@ -5,6 +5,7 @@ import type { DependencyTree, DependencyNode } from '../types/index.js'
 import { Ecosystem } from '../types/index.js'
 import type { ParsedManifest } from '../parsers/base.js'
 import type { ManifestParser } from '../parsers/base.js'
+import { basename } from 'node:path'
 
 export interface ResolveOptions {
   content: string
@@ -39,7 +40,7 @@ export function createTreeResolver(options: TreeResolverOptions): TreeResolver {
       const ecosystem = detectEcosystem(filePath, content)
       if (!ecosystem) {
         throw new Error(
-          `Could not detect ecosystem from ${filePath ?? 'content'}`,
+          `Could not detect ecosystem from ${filePath ? basename(filePath) : 'content'}`,
         )
       }
 
@@ -97,7 +98,9 @@ async function buildTree(
         if (result.status === 'fulfilled') {
           metadataMap.set(name, result.value)
         } else {
-          const reason = result.reason instanceof Error ? result.reason.message : String(result.reason)
+          // Truncate reason to avoid leaking full HTTP response bodies
+          const rawReason = result.reason instanceof Error ? result.reason.message : String(result.reason)
+          const reason = rawReason.length > 200 ? rawReason.slice(0, 200) + '…' : rawReason
           registryWarnings.push(`Registry lookup failed for ${name}: ${reason}`)
         }
       }

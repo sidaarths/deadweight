@@ -3,8 +3,38 @@ import type { ToolDefinition } from '../server.js'
 import { AnalyzeDependencyTreeSchema } from '../types/index.js'
 import type { AnalyzeDependencyTreeInput, DependencyNode } from '../types/index.js'
 import { readFile } from 'node:fs/promises'
+import { resolve, basename } from 'node:path' // resolve used in assertAllowedManifestPath
 
 const MAX_SERIALIZE_DEPTH = 50
+
+// Allowlist of manifest filenames the tool is permitted to read.
+// Prevents reading arbitrary files (SSH keys, .env, etc.) even if the caller
+// supplies an absolute path, while still allowing paths anywhere on the machine.
+const ALLOWED_MANIFEST_NAMES = new Set([
+  'package.json', 'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml',
+  'requirements.txt', 'pyproject.toml', 'Pipfile', 'Pipfile.lock',
+  'Cargo.toml', 'Cargo.lock',
+  'go.mod', 'go.sum',
+  'pom.xml', 'build.gradle', 'build.gradle.kts',
+  'packages.config', 'Directory.Packages.props',
+])
+
+function assertAllowedManifestPath(rawPath: string): string {
+  // Reject paths that traverse upward via '..'
+  if (rawPath.includes('..')) {
+    throw new Error('Path must not contain directory traversal sequences')
+  }
+  const resolved = resolve(rawPath)
+  const name = basename(resolved)
+  // Allow .csproj files (variable prefix, fixed extension)
+  const isCsproj = name.endsWith('.csproj')
+  if (!ALLOWED_MANIFEST_NAMES.has(name) && !isCsproj) {
+    throw new Error(
+      `Path must point to a known manifest file (e.g. package.json, requirements.txt). Got: ${name}`,
+    )
+  }
+  return resolved
+}
 
 export function createAnalyzeDependencyTreeTool(
   resolver: TreeResolver,
@@ -19,8 +49,9 @@ export function createAnalyzeDependencyTreeTool(
       let filePath: string | undefined
 
       if (input.path) {
-        content = await readFile(input.path, 'utf-8')
-        filePath = input.path
+        const resolvedPath = assertAllowedManifestPath(input.path)
+        content = await readFile(resolvedPath, 'utf-8')
+        filePath = resolvedPath
       } else {
         content = input.content!
       }
