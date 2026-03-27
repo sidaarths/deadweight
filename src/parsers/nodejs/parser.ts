@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { basename } from 'node:path'
 import type { ManifestParser, ParsedManifest } from '../base.js'
 import { Ecosystem } from '../../types/index.js'
 
@@ -35,7 +36,21 @@ const LockfileSchema = z.object({
 })
 
 export class NodejsParser implements ManifestParser {
-  async parse(content: string, _filePath?: string): Promise<ParsedManifest> {
+  async parse(content: string, filePath?: string): Promise<ParsedManifest> {
+    const fileName = filePath ? basename(filePath) : ''
+
+    // bun.lockb is a binary format — cannot be parsed as text
+    if (fileName === 'bun.lockb') {
+      throw new Error(
+        'bun.lockb is a binary lockfile and cannot be parsed — point the tool at package.json in the same directory instead',
+      )
+    }
+
+    // bun.lock uses JSON5 (trailing commas) — strip them before parsing
+    if (fileName === 'bun.lock') {
+      return this.parseBunLock(content)
+    }
+
     let raw: unknown
     try {
       raw = JSON.parse(content)
@@ -64,6 +79,68 @@ export class NodejsParser implements ManifestParser {
     }
 
     throw new Error('NodejsParser: content is neither a package.json nor a package-lock.json')
+  }
+
+  private parseBunLock(content: string): ParsedManifest {
+    // bun.lock is JSON5: strip trailing commas before the standard JSON.parse
+    const normalized = content.replace(/,(\s*[}\]])/g, '$1')
+    let raw: unknown
+    try {
+      raw = JSON.parse(normalized)
+    } catch {
+      throw new Error('bun.lock: failed to parse — unexpected format')
+    }
+
+    if (typeof raw !== 'object' || raw === null) {
+      throw new Error('bun.lock: unexpected top-level type')
+    }
+    const obj = raw as Record<string, unknown>
+
+    const dependencies = new Map<string, string>()
+    const devDependencies = new Map<string, string>()
+    const resolvedVersions = new Map<string, string>()
+    let rootName: string | undefined
+    let rootVersion: string | undefined
+
+    // workspaces[""] is the root workspace
+    const workspaces = obj['workspaces'] as Record<string, unknown> | undefined
+    if (workspaces && typeof workspaces[''] === 'object' && workspaces[''] !== null) {
+      const root = workspaces[''] as Record<string, unknown>
+      rootName = typeof root['name'] === 'string' ? root['name'] : undefined
+      rootVersion = typeof root['version'] === 'string' ? root['version'] : undefined
+      for (const [name, range] of Object.entries((root['dependencies'] ?? {}) as Record<string, string>)) {
+        dependencies.set(name, range)
+      }
+      for (const [name, range] of Object.entries((root['devDependencies'] ?? {}) as Record<string, string>)) {
+        devDependencies.set(name, range)
+      }
+    }
+
+    // packages: { "name": [resolution, deps, meta, checksum] }
+    // The key is the package name; the resolution string at index 0 is "name@version".
+    // Extract the version from the resolution string using the last @ separator.
+    const packages = obj['packages'] as Record<string, unknown> | undefined
+    if (packages) {
+      for (const [name, entry] of Object.entries(packages)) {
+        if (!Array.isArray(entry) || typeof entry[0] !== 'string') continue
+        const resolution = entry[0] as string // e.g. "@esbuild/aix-ppc64@0.21.5"
+        const lastAt = resolution.lastIndexOf('@')
+        if (lastAt > 0) {
+          const version = resolution.slice(lastAt + 1)
+          if (version) resolvedVersions.set(name, version)
+        }
+      }
+    }
+
+    return {
+      ecosystem: Ecosystem.nodejs,
+      dependencies,
+      devDependencies,
+      resolvedVersions,
+      warnings: [],
+      rootName,
+      rootVersion,
+    }
   }
 
   private parsePackageJson(pkg: z.infer<typeof PackageJsonSchema>): ParsedManifest {

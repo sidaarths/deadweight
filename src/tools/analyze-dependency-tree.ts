@@ -11,7 +11,7 @@ const MAX_SERIALIZE_DEPTH = 50
 // Prevents reading arbitrary files (SSH keys, .env, etc.) even if the caller
 // supplies an absolute path, while still allowing paths anywhere on the machine.
 const ALLOWED_MANIFEST_NAMES = new Set([
-  'package.json', 'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml',
+  'package.json', 'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', 'bun.lock', 'bun.lockb',
   'requirements.txt', 'pyproject.toml', 'Pipfile', 'Pipfile.lock',
   'Cargo.toml', 'Cargo.lock',
   'go.mod', 'go.sum',

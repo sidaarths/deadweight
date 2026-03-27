@@ -71,6 +71,45 @@ describe('NodejsParser', () => {
     })
   })
 
+  describe('parse bun.lock', () => {
+    it('detects ecosystem as nodejs', async () => {
+      const content = readFileSync(join(FIXTURES, 'bun.lock'), 'utf-8')
+      const result = await parser.parse(content, '/project/bun.lock')
+      expect(result.ecosystem).toBe(Ecosystem.nodejs)
+    })
+
+    it('extracts root name from workspaces[""]', async () => {
+      const content = readFileSync(join(FIXTURES, 'bun.lock'), 'utf-8')
+      const result = await parser.parse(content, '/project/bun.lock')
+      expect(result.rootName).toBe('heist')
+    })
+
+    it('extracts dev dependencies from root workspace', async () => {
+      const content = readFileSync(join(FIXTURES, 'bun.lock'), 'utf-8')
+      const result = await parser.parse(content, '/project/bun.lock')
+      expect(result.devDependencies.get('typescript')).toBe('^5.9.3')
+      expect(result.devDependencies.get('concurrently')).toBe('^9.2.1')
+    })
+
+    it('extracts resolved versions from packages map', async () => {
+      const content = readFileSync(join(FIXTURES, 'bun.lock'), 'utf-8')
+      const result = await parser.parse(content, '/project/bun.lock')
+      expect(result.resolvedVersions.get('@esbuild/aix-ppc64')).toBe('0.21.5')
+    })
+
+    it('emits no warnings for a valid bun.lock', async () => {
+      const content = readFileSync(join(FIXTURES, 'bun.lock'), 'utf-8')
+      const result = await parser.parse(content, '/project/bun.lock')
+      expect(result.warnings).toHaveLength(0)
+    })
+
+    it('throws a helpful error for bun.lockb binary format', async () => {
+      await expect(
+        parser.parse('binary content', '/project/bun.lockb')
+      ).rejects.toThrow(/binary/)
+    })
+  })
+
   describe('error handling', () => {
     it('throws on invalid JSON', async () => {
       await expect(parser.parse('not json')).rejects.toThrow()
