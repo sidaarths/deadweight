@@ -132,4 +132,35 @@ describe('NpmRegistryClient', () => {
       expect(count).toBeNull()
     })
   })
+
+  describe('scoped package URL encoding', () => {
+    const SCOPED_RESPONSE = {
+      name: '@types/node',
+      description: 'TypeScript definitions for node',
+      'dist-tags': { latest: '20.0.0' },
+      time: { '20.0.0': '2023-01-01T00:00:00.000Z' },
+      maintainers: [{ name: 'types' }],
+      license: 'MIT',
+    }
+
+    it('encodes scoped package name correctly — @ literal, / percent-encoded', async () => {
+      mockFetch.mockResolvedValueOnce(
+        new Response(JSON.stringify(SCOPED_RESPONSE), { status: 200 })
+      )
+      await client.getPackageMetadata('@types/node')
+      const calledUrl = mockFetch.mock.calls[0][0] as string
+      // Must NOT be %40types%2Fnode (fully encoded)
+      expect(calledUrl).not.toContain('%40types%2Fnode')
+      // Must be @types%2Fnode
+      expect(calledUrl).toContain('@types%2Fnode')
+    })
+
+    it('fetches metadata for a scoped package without error', async () => {
+      mockFetch.mockResolvedValueOnce(
+        new Response(JSON.stringify(SCOPED_RESPONSE), { status: 200 })
+      )
+      const meta = await client.getPackageMetadata('@types/node')
+      expect(meta.license).toBe('MIT')
+    })
+  })
 })

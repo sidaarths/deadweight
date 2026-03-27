@@ -106,4 +106,20 @@ describe('TreeResolver', () => {
       resolver.resolve({ content: 'random text', filePath: '/project/unknown.xyz' })
     ).rejects.toThrow(/ecosystem/)
   })
+
+  it('surfaces registry failures as warnings on the tree', async () => {
+    // Only mock the first fetch to succeed; others return 500 → registry warning
+    mockFetch
+      .mockResolvedValueOnce(new Response(JSON.stringify(NPM_LODASH), { status: 200 }))
+      .mockResolvedValue(new Response('Server Error', { status: 500 }))
+
+    const content = readFileSync(join(FIXTURES, 'package-lock.json'), 'utf-8')
+    const tree = await resolver.resolve({ content, filePath: '/project/package-lock.json' })
+
+    // Tree still resolves (no throw)
+    expect(tree).toBeDefined()
+    // Registry failures appear as warnings
+    const registryWarnings = tree.warnings.filter(w => w.includes('Registry lookup failed'))
+    expect(registryWarnings.length).toBeGreaterThan(0)
+  })
 })

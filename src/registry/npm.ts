@@ -27,6 +27,24 @@ const NpmDownloadsSchema = z.object({
   downloads: z.number(),
 })
 
+/**
+ * Encode a package name for use in the npm registry URL.
+ * Scoped packages (@scope/name) require the form `@scope%2Fname` —
+ * the `@` must be literal and only the `/` is percent-encoded.
+ * `encodeURIComponent` would incorrectly encode both characters.
+ */
+function npmRegistryPath(name: string): string {
+  if (name.startsWith('@')) {
+    const slash = name.indexOf('/')
+    if (slash !== -1) {
+      const scope = name.slice(1, slash)
+      const pkg = name.slice(slash + 1)
+      return `@${encodeURIComponent(scope)}%2F${encodeURIComponent(pkg)}`
+    }
+  }
+  return encodeURIComponent(name)
+}
+
 export class NpmRegistryClient implements RegistryClient {
   readonly ecosystem = Ecosystem.nodejs
 
@@ -34,7 +52,7 @@ export class NpmRegistryClient implements RegistryClient {
 
   async getPackageMetadata(name: string, _version?: string): Promise<RegistryMetadata> {
     const raw = await this.http.fetchJson(
-      `https://registry.npmjs.org/${encodeURIComponent(name)}`
+      `https://registry.npmjs.org/${npmRegistryPath(name)}`
     )
     const pkg = NpmPackageSchema.parse(raw)
 
@@ -77,7 +95,7 @@ export class NpmRegistryClient implements RegistryClient {
   ): Promise<number | null> {
     try {
       const raw = await this.http.fetchJson(
-        `https://api.npmjs.org/downloads/point/last-week/${encodeURIComponent(name)}`
+        `https://api.npmjs.org/downloads/point/last-week/${npmRegistryPath(name)}`
       )
       const data = NpmDownloadsSchema.parse(raw)
       return data.downloads

@@ -1,10 +1,14 @@
 import type { TreeResolver } from '../analysis/tree-resolver.js'
+import type { ToolDefinition } from '../server.js'
 import { AnalyzeDependencyTreeSchema } from '../types/index.js'
-import type { AnalyzeDependencyTreeInput } from '../types/index.js'
-import type { DependencyNode } from '../types/index.js'
+import type { AnalyzeDependencyTreeInput, DependencyNode } from '../types/index.js'
 import { readFile } from 'node:fs/promises'
 
-export function createAnalyzeDependencyTreeTool(resolver: TreeResolver) {
+const MAX_SERIALIZE_DEPTH = 50
+
+export function createAnalyzeDependencyTreeTool(
+  resolver: TreeResolver,
+): ToolDefinition<AnalyzeDependencyTreeInput> {
   return {
     name: 'analyze_dependency_tree' as const,
     description:
@@ -34,13 +38,13 @@ export function createAnalyzeDependencyTreeTool(resolver: TreeResolver) {
         totalTransitive: tree.totalTransitive,
         resolvedAt: tree.resolvedAt.toISOString(),
         warnings: tree.warnings,
-        root: serializeNode(tree.root),
+        root: serializeNode(tree.root, 0),
       }
     },
   }
 }
 
-function serializeNode(node: DependencyNode): unknown {
+function serializeNode(node: DependencyNode, currentDepth: number): unknown {
   return {
     name: node.name,
     version: node.version,
@@ -59,6 +63,9 @@ function serializeNode(node: DependencyNode): unknown {
           description: node.registryMetadata.description,
         }
       : null,
-    dependencies: node.dependencies.map(serializeNode),
+    dependencies:
+      currentDepth < MAX_SERIALIZE_DEPTH
+        ? node.dependencies.map(d => serializeNode(d, currentDepth + 1))
+        : [],
   }
 }

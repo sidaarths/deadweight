@@ -81,6 +81,8 @@ async function buildTree(
     Awaited<ReturnType<RegistryClient['getPackageMetadata']>>
   >()
 
+  const registryWarnings: string[] = []
+
   if (client) {
     const entries = [...allPackages.entries()]
     const BATCH = 10
@@ -94,6 +96,9 @@ async function buildTree(
         const result = results[j]
         if (result.status === 'fulfilled') {
           metadataMap.set(name, result.value)
+        } else {
+          const reason = result.reason instanceof Error ? result.reason.message : String(result.reason)
+          registryWarnings.push(`Registry lookup failed for ${name}: ${reason}`)
         }
       }
     }
@@ -150,6 +155,6 @@ async function buildTree(
     totalDirect: includedDirectDeps.size,
     totalTransitive,
     resolvedAt: new Date(),
-    warnings: manifest.warnings,
+    warnings: [...manifest.warnings, ...registryWarnings],
   }
 }

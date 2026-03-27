@@ -42,7 +42,10 @@ export function detectEcosystem(filePath?: string, content?: string): Ecosystem 
       // not JSON — continue to other heuristics
     }
     // requirements.txt: lines like "package==version" or "package>=version"
-    if (/^[a-zA-Z0-9_-]+(==|>=|<=|~=|!=|>|<)/m.test(content)) {
+    // Require the more specific PEP 440 operators (== >= <= ~= !=) and that
+    // the match is at the start of a line with no JS/CSS-like prefix chars.
+    // Single < or > without = is excluded to avoid matching HTML/CSS.
+    if (/^[a-zA-Z0-9]([a-zA-Z0-9._-]*)?(\[[\w,\s]+\])?\s*(==|>=|<=|~=|!=)/m.test(content)) {
       return Ecosystem.python
     }
   }
