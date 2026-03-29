@@ -59,11 +59,14 @@ describe('TreeResolver', () => {
   })
 
   function mockNpmResponses() {
-    mockFetch
-      .mockResolvedValueOnce(new Response(JSON.stringify(NPM_LODASH), { status: 200 }))
-      .mockResolvedValueOnce(new Response(JSON.stringify(NPM_EXPRESS), { status: 200 }))
-      .mockResolvedValueOnce(new Response(JSON.stringify(NPM_ACCEPTS), { status: 200 }))
-      .mockResolvedValueOnce(new Response(JSON.stringify(NPM_TYPESCRIPT), { status: 200 }))
+    // URL-based dispatch: correct data regardless of fetch call order
+    mockFetch.mockImplementation((url: string) => {
+      if (url.includes('/lodash')) return Promise.resolve(new Response(JSON.stringify(NPM_LODASH), { status: 200 }))
+      if (url.includes('/express')) return Promise.resolve(new Response(JSON.stringify(NPM_EXPRESS), { status: 200 }))
+      if (url.includes('/accepts')) return Promise.resolve(new Response(JSON.stringify(NPM_ACCEPTS), { status: 200 }))
+      if (url.includes('/typescript')) return Promise.resolve(new Response(JSON.stringify(NPM_TYPESCRIPT), { status: 200 }))
+      return Promise.resolve(new Response('Not Found', { status: 404 }))
+    })
   }
 
   it('resolves ecosystem from file path', async () => {
