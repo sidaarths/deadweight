@@ -66,6 +66,18 @@ describe('HttpClient', () => {
 
       expect(mockFetch).toHaveBeenCalledTimes(2) // no cache for authenticated
     })
+
+    it('does not cache requests authenticated via Headers instance', async () => {
+      mockFetch
+        .mockResolvedValueOnce(new Response(JSON.stringify({ private: true }), { status: 200 }))
+        .mockResolvedValueOnce(new Response(JSON.stringify({ private: true }), { status: 200 }))
+
+      const opts = { headers: new Headers({ Authorization: 'Bearer token123' }) }
+      await client.fetchJson('https://api.github.com/repos/foo/bar', opts)
+      await client.fetchJson('https://api.github.com/repos/foo/bar', opts)
+
+      expect(mockFetch).toHaveBeenCalledTimes(2) // Headers instance bypasses cache
+    })
   })
 
   describe('retry behaviour', () => {

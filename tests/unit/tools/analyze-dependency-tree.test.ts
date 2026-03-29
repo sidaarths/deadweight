@@ -158,6 +158,20 @@ describe('createAnalyzeDependencyTreeTool', () => {
         tool.handler({ path: join(tmpDir, 'nonexistent.json'), includeDevDependencies: false })
       ).rejects.toThrow()
     })
+
+    it('throws on path traversal sequences (..)', async () => {
+      await expect(
+        tool.handler({ path: '../../../etc/passwd', includeDevDependencies: false })
+      ).rejects.toThrow(/traversal/)
+    })
+
+    it('throws on disallowed manifest filename', async () => {
+      const badPath = join(tmpDir, 'secrets.env')
+      await writeFile(badPath, 'API_KEY=abc123', 'utf-8')
+      await expect(
+        tool.handler({ path: badPath, includeDevDependencies: false })
+      ).rejects.toThrow(/known manifest/)
+    })
   })
 
   describe('includeDevDependencies', () => {
