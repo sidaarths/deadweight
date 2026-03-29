@@ -6,6 +6,8 @@ const PATH_MAP: Record<string, Ecosystem> = {
   'package-lock.json': Ecosystem.nodejs,
   'yarn.lock': Ecosystem.nodejs,
   'pnpm-lock.yaml': Ecosystem.nodejs,
+  'bun.lock': Ecosystem.nodejs,
+  'bun.lockb': Ecosystem.nodejs,
   'requirements.txt': Ecosystem.python,
   'pyproject.toml': Ecosystem.python,
   'Pipfile': Ecosystem.python,

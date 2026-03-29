@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { basename } from 'node:path'
 import type { ManifestParser, ParsedManifest } from '../base.js'
 import { Ecosystem } from '../../types/index.js'
 
@@ -35,7 +36,21 @@ const LockfileSchema = z.object({
 })
 
 export class NodejsParser implements ManifestParser {
-  async parse(content: string, _filePath?: string): Promise<ParsedManifest> {
+  async parse(content: string, filePath?: string): Promise<ParsedManifest> {
+    const fileName = filePath ? basename(filePath) : ''
+
+    // bun.lockb is a binary format — cannot be parsed as text
+    if (fileName === 'bun.lockb') {
+      throw new Error(
+        'bun.lockb is a binary lockfile and cannot be parsed — point the tool at package.json in the same directory instead',
+      )
+    }
+
+    // bun.lock uses JSON5 (trailing commas) — strip them before parsing
+    if (fileName === 'bun.lock') {
+      return this.parseBunLock(content)
+    }
+
     let raw: unknown
     try {
       raw = JSON.parse(content)
@@ -64,6 +79,76 @@ export class NodejsParser implements ManifestParser {
     }
 
     throw new Error('NodejsParser: content is neither a package.json nor a package-lock.json')
+  }
+
+  private parseBunLock(content: string): ParsedManifest {
+    // bun.lock is JSON5: strip trailing commas before standard JSON.parse
+    const normalized = content.replace(/,(\s*[}\]])/g, '$1')
+    let raw: unknown
+    try {
+      raw = JSON.parse(normalized)
+    } catch {
+      throw new Error('bun.lock: failed to parse — unexpected format')
+    }
+    if (typeof raw !== 'object' || raw === null) {
+      throw new Error('bun.lock: unexpected top-level type')
+    }
+    const obj = raw as Record<string, unknown>
+
+    const dependencies = new Map<string, string>()
+    const devDependencies = new Map<string, string>()
+    const resolvedVersions = new Map<string, string>()
+    let rootName: string | undefined
+    let rootVersion: string | undefined
+
+    // Collect workspace package names upfront to exclude them from npm resolution
+    const workspaceNames = new Set<string>()
+    const workspaces = obj['workspaces'] as Record<string, unknown> | undefined
+    if (workspaces) {
+      for (const [wsKey, wsEntry] of Object.entries(workspaces)) {
+        if (typeof wsEntry !== 'object' || wsEntry === null) continue
+        const ws = wsEntry as Record<string, unknown>
+        const wsName = typeof ws['name'] === 'string' ? ws['name'] : undefined
+        if (wsKey === '') {
+          rootName = wsName
+          rootVersion = typeof ws['version'] === 'string' ? ws['version'] : undefined
+          for (const [name, range] of Object.entries((ws['dependencies'] ?? {}) as Record<string, string>)) {
+            if (!String(range).startsWith('workspace:')) dependencies.set(name, range)
+          }
+          for (const [name, range] of Object.entries((ws['devDependencies'] ?? {}) as Record<string, string>)) {
+            if (!String(range).startsWith('workspace:')) devDependencies.set(name, range)
+          }
+        }
+        if (wsName) workspaceNames.add(wsName)
+      }
+    }
+
+    // packages: { "name": [resolution, deps, meta, checksum] }
+    // Skip workspace packages (local monorepo) and sub-path specifiers (chalk/supports-color)
+    const packages = obj['packages'] as Record<string, unknown> | undefined
+    if (packages) {
+      for (const [name, entry] of Object.entries(packages)) {
+        if (!name.startsWith('@') && name.includes('/')) continue // sub-path specifier
+        if (workspaceNames.has(name)) continue
+        if (!Array.isArray(entry) || typeof entry[0] !== 'string') continue
+        const resolution = entry[0] as string
+        if (resolution.includes('@workspace:')) continue // workspace-protocol entry
+        const lastAt = resolution.lastIndexOf('@')
+        if (lastAt > 0) {
+          const version = resolution.slice(lastAt + 1)
+          if (version) resolvedVersions.set(name, version)
+        }
+      }
+    }
+
+    const warnings: string[] = []
+    if (dependencies.size === 0 && devDependencies.size > 0) {
+      warnings.push(
+        'Root workspace has no runtime dependencies — pass includeDevDependencies: true to include dev dependencies in the analysis',
+      )
+    }
+
+    return { ecosystem: Ecosystem.nodejs, dependencies, devDependencies, resolvedVersions, warnings, rootName, rootVersion }
   }
 
   private parsePackageJson(pkg: z.infer<typeof PackageJsonSchema>): ParsedManifest {
