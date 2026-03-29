@@ -107,6 +107,18 @@ describe('TreeResolver', () => {
     ).rejects.toThrow(/ecosystem/)
   })
 
+  it('throws when ecosystem is detected but no parser is registered for it', async () => {
+    // Create a resolver with NO registered parsers but with an npm client,
+    // then pass content that detects as nodejs — forces the "no parser" branch.
+    const { createTreeResolver: makeResolver } = await import('../../../src/analysis/tree-resolver.js')
+    // @ts-expect-error — internal: bypass parser map by passing empty registryClients list
+    // and then monkey-patching. Instead we just pass a Python content to a resolver
+    // that has no Python parser (default resolver only registers nodejs).
+    await expect(
+      resolver.resolve({ content: 'requests==2.28.0', filePath: '/project/requirements.txt' })
+    ).rejects.toThrow(/No parser registered/)
+  })
+
   it('surfaces registry failures as warnings on the tree', async () => {
     // Only mock the first fetch to succeed; others return 500 → registry warning
     mockFetch
@@ -121,5 +133,43 @@ describe('TreeResolver', () => {
     // Registry failures appear as warnings
     const registryWarnings = tree.warnings.filter(w => w.includes('Registry lookup failed'))
     expect(registryWarnings.length).toBeGreaterThan(0)
+  })
+
+  it('truncates registry failure reason longer than 200 chars', async () => {
+    // Stub the registry client to throw an Error with a >200-char message
+    const longMessage = 'E'.repeat(250)
+    const http = createHttpClient({ cache, rateLimitPerSecond: 100, retryBaseDelayMs: 1 })
+    const faultyClient = new NpmRegistryClient(http)
+    vi.spyOn(faultyClient, 'getPackageMetadata').mockRejectedValue(new Error(longMessage))
+
+    const { createTreeResolver: makeResolver } = await import('../../../src/analysis/tree-resolver.js')
+    const r = makeResolver({ registryClients: [faultyClient] })
+
+    const content = readFileSync(join(FIXTURES, 'package-lock.json'), 'utf-8')
+    const tree = await r.resolve({ content, filePath: '/project/package-lock.json' })
+
+    const longWarning = tree.warnings.find(w => w.includes('…'))
+    expect(longWarning).toBeDefined()
+  })
+
+  it('uses dependency range as version when resolvedVersions is empty (package.json only)', async () => {
+    // package.json parse produces no resolvedVersions — direct nodes should fall back to range string
+    mockFetch
+      .mockResolvedValueOnce(new Response(JSON.stringify(NPM_LODASH), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(NPM_EXPRESS), { status: 200 }))
+    const content = readFileSync(join(FIXTURES, 'package.json'), 'utf-8')
+    const tree = await resolver.resolve({ content, filePath: '/project/package.json' })
+    const lodash = tree.root.dependencies.find(d => d.name === 'lodash')
+    // resolvedVersions is empty → falls back to dependencies map range
+    expect(lodash?.version).toBe('^4.17.21')
+  })
+
+  it('uses fallback root name and version when manifest has none', async () => {
+    // A minimal package.json without name/version — rootName and rootVersion will be undefined
+    const minimal = JSON.stringify({ dependencies: { lodash: '^4.17.21' } })
+    mockFetch.mockResolvedValueOnce(new Response(JSON.stringify(NPM_LODASH), { status: 200 }))
+    const tree = await resolver.resolve({ content: minimal })
+    expect(tree.root.name).toBe('root')
+    expect(tree.root.version).toBe('0.0.0')
   })
 })

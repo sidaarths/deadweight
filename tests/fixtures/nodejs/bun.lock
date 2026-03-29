@@ -1,0 +1,33 @@
+{
+  "lockfileVersion": 1,
+  "configVersion": 1,
+  "workspaces": {
+    "": {
+      "name": "heist",
+      "devDependencies": {
+        "concurrently": "^9.2.1",
+        "typescript": "^5.9.3",
+      },
+    },
+    "packages/client": {
+      "name": "@heist/client",
+      "version": "1.0.0",
+      "dependencies": {
+        "@heist/shared": "workspace:*",
+        "preact": "^10.0.0",
+      },
+    },
+    "packages/shared": {
+      "name": "@heist/shared",
+      "version": "1.0.0",
+    },
+  },
+  "packages": {
+    "@esbuild/aix-ppc64": ["@esbuild/aix-ppc64@0.21.5", "", { "os": "aix", "cpu": "ppc64" }, "sha512-abc=="],
+    "@heist/client": ["@heist/client@workspace:packages/client", {}, {}],
+    "@heist/shared": ["@heist/shared@workspace:packages/shared", {}, {}],
+    "chalk/supports-color": ["chalk/supports-color@5.3.0", {}, {}],
+    "concurrently": ["concurrently@9.2.1", {}, {}, "sha512-xyz=="],
+    "typescript": ["typescript@5.9.3", {}, {}, "sha512-def=="],
+  },
+}

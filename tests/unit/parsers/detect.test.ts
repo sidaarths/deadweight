@@ -16,6 +16,12 @@ describe('detectEcosystem', () => {
     it('detects nodejs from pnpm-lock.yaml', () => {
       expect(detectEcosystem('/project/pnpm-lock.yaml')).toBe(Ecosystem.nodejs)
     })
+    it('detects nodejs from bun.lock', () => {
+      expect(detectEcosystem('/project/bun.lock')).toBe(Ecosystem.nodejs)
+    })
+    it('detects nodejs from bun.lockb', () => {
+      expect(detectEcosystem('/project/bun.lockb')).toBe(Ecosystem.nodejs)
+    })
     it('detects python from requirements.txt', () => {
       expect(detectEcosystem('/project/requirements.txt')).toBe(Ecosystem.python)
     })

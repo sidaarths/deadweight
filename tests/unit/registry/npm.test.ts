@@ -99,6 +99,30 @@ describe('NpmRegistryClient', () => {
       expect(meta.lastPublishDate).toBeNull()
     })
 
+    it('returns null repositoryUrl for malformed repository URL', async () => {
+      const withBadUrl = {
+        ...NPM_LODASH_RESPONSE,
+        repository: { url: 'not-a-valid-url' },
+      }
+      mockFetch.mockResolvedValueOnce(
+        new Response(JSON.stringify(withBadUrl), { status: 200 })
+      )
+      const meta = await client.getPackageMetadata('lodash')
+      expect(meta.repositoryUrl).toBeNull()
+    })
+
+    it('returns null repositoryUrl for http (non-https) repository URL', async () => {
+      const withHttpUrl = {
+        ...NPM_LODASH_RESPONSE,
+        repository: { url: 'http://github.com/lodash/lodash' },
+      }
+      mockFetch.mockResolvedValueOnce(
+        new Response(JSON.stringify(withHttpUrl), { status: 200 })
+      )
+      const meta = await client.getPackageMetadata('lodash')
+      expect(meta.repositoryUrl).toBeNull()
+    })
+
     it('throws on 404', async () => {
       mockFetch.mockResolvedValueOnce(new Response('Not Found', { status: 404 }))
       await expect(client.getPackageMetadata('nonexistent-pkg-xyz')).rejects.toThrow()
