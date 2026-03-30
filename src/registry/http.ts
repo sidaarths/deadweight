@@ -48,7 +48,19 @@ function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
 
-function validateUrl(url: string): void {
+/** Strips query string and fragment from a URL for safe inclusion in error messages. */
+function redactUrl(url: string): string {
+  try {
+    const u = new URL(url)
+    u.search = ''
+    u.hash = ''
+    return u.toString()
+  } catch {
+    return '<invalid-url>'
+  }
+}
+
+export function validateUrl(url: string): void {
   let parsed: URL
   try {
     parsed = new URL(url)
@@ -92,7 +104,7 @@ export function createHttpClient(options: HttpClientOptions): HttpClient {
     if (response.ok) return response
 
     if (NO_RETRY_STATUSES.has(response.status)) {
-      throw new Error(`HTTP ${response.status} for ${url}`)
+      throw new Error(`HTTP ${response.status} for ${redactUrl(url)}`)
     }
 
     if (RETRY_STATUSES.has(response.status) && attempt < maxAttempts) {
@@ -100,7 +112,7 @@ export function createHttpClient(options: HttpClientOptions): HttpClient {
       return fetchWithRetry(url, init, attempt + 1)
     }
 
-    throw new Error(`HTTP ${response.status} after ${attempt} attempt(s) for ${url}`)
+    throw new Error(`HTTP ${response.status} after ${attempt} attempt(s) for ${redactUrl(url)}`)
   }
 
   return {
