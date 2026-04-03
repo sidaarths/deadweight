@@ -184,8 +184,8 @@ Steps:
 
 ---
 
-### Phase 4 — Analysis Engines
-**Branch:** `phase-4/analysis-engines`
+### Phase 4 — Analysis Engines ✅
+**Branch:** `phase-4/analysis-engines` | **PR:** #7
 
 Files: `src/registry/{github,osv,librariesio}.ts`, `src/analysis/{maintainer-risk,abandonment,spdx-compat,license-checker,categories,consolidation,health-report,alternative-finder}.ts`
 
@@ -207,8 +207,8 @@ Steps:
 
 ---
 
-### Phase 5 — Remaining 7 MCP Tools
-**Branch:** `phase-5/all-tools`
+### Phase 5 — Remaining 7 MCP Tools ✅
+**Branch:** `phase-5/all-tools` | **PR:** #8
 
 Files: `src/tools/{find-single-maintainer,flag-abandoned,get-license-conflicts,suggest-consolidations,get-health-report,compare-alternative,get-ecosystem-summary}.ts`
 
@@ -220,6 +220,13 @@ Files: `src/tools/{find-single-maintainer,flag-abandoned,get-license-conflicts,s
 - Tool 7: `compare_alternative` — accepts `{ packageName, ecosystem }`, no manifest needed
 - Tool 8: `get_ecosystem_summary`
 - Integration tests for all tools with fixtures + mocked HTTP
+- MCP journey tests: 3 multi-tool end-to-end flows (diagnose, license audit, dashboard)
+- Shared `src/utils/manifest.ts` path-validation utility with:
+  - Directory boundary (`DEADWEIGHT_ROOT`, defaults to `homedir()`)
+  - 10 MB file size cap on disk reads
+  - `LibrariesIoClient` wired through `HttpClient` (rate limiting + retry)
+- README.md written from source-of-truth files
+- 580 tests passing
 
 **Deliverable:** All 8 tools working for Node.js. Feature-complete for one ecosystem.
 

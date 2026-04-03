@@ -158,4 +158,61 @@ describe('analyzeMaintainerRisk', () => {
     const signal = signals.find(s => s.package.name === 'archived-lib')
     expect(signal?.message.toLowerCase()).toContain('archived')
   })
+
+  it('skips GitHub check when getRepoHealth returns null', async () => {
+    // health is null → if (health) block is skipped; severity stays at its initial value
+    const mockGitHubClient = {
+      getRepoHealth: vi.fn().mockResolvedValue(null),
+    }
+
+    const tree = makeTree([makeNode('no-health-pkg', 1, 500, true, 'https://github.com/solo/norepo')])
+    const signals = await analyzeMaintainerRisk({ tree, gitHubClient: mockGitHubClient as any })
+    const signal = signals.find(s => s.package.name === 'no-health-pkg')
+    // Should still flag as single_maintainer (with warning, not critical)
+    expect(signal).toBeDefined()
+    expect(signal?.type).toBe('single_maintainer')
+    expect(signal?.severity).toBe('warning')
+  })
+
+  it('uses unknown as maintainer name when name property is missing', async () => {
+    // Maintainer with no name → message should contain 'unknown'
+    const node = {
+      name: 'nameless-maintainer-pkg',
+      version: '1.0.0',
+      ecosystem: Ecosystem.nodejs,
+      directDependency: true,
+      depth: 1,
+      dependencies: [],
+      registryMetadata: {
+        // maintainers[0] has no name (undefined)
+        maintainers: [{}],
+        lastPublishDate: new Date(),
+        weeklyDownloads: 500,
+        license: 'MIT',
+        repositoryUrl: null,
+        description: null,
+        homepage: null,
+        deprecated: null,
+      },
+    }
+    const tree = {
+      root: {
+        name: 'app',
+        version: '1.0.0',
+        ecosystem: Ecosystem.nodejs,
+        directDependency: false,
+        depth: 0,
+        dependencies: [node],
+      },
+      ecosystem: Ecosystem.nodejs,
+      manifestPath: 'package.json',
+      totalDirect: 1,
+      totalTransitive: 0,
+      resolvedAt: new Date(),
+    }
+    const signals = await analyzeMaintainerRisk({ tree })
+    const signal = signals.find(s => s.package.name === 'nameless-maintainer-pkg')
+    expect(signal).toBeDefined()
+    expect(signal?.message).toContain('unknown')
+  })
 })

@@ -10,7 +10,7 @@ const ConfigSchema = z.object({
   rateLimitPerSecond: z.coerce.number().int().positive(),
 })
 
-export type Config = z.infer<typeof ConfigSchema>
+type Config = z.infer<typeof ConfigSchema>
 
 export const DEFAULT_CONFIG = {
   cacheDir: join(homedir(), '.deadweight', 'cache'),

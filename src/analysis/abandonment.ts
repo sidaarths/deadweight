@@ -93,7 +93,7 @@ async function analyzeNode(
     if (cveScore > 0) {
       score = Math.min(score + cveScore, 100)
       if (score >= 70 && severity !== RiskSeverity.critical) severity = RiskSeverity.critical
-      else if (score >= 40 && !severity) severity = RiskSeverity.warning
+      else if (score >= 40 && severity !== RiskSeverity.critical) severity = RiskSeverity.warning
       else if (!severity) severity = RiskSeverity.advisory
     }
   }
