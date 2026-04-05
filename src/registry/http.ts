@@ -16,7 +16,7 @@ const ALLOWED_HOSTS = new Set([
   'libraries.io',
 ])
 
-export interface HttpClientOptions {
+interface HttpClientOptions {
   cache: Cache
   rateLimitPerSecond: number
   timeoutMs?: number

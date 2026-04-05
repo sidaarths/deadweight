@@ -1,10 +1,6 @@
 import type { DependencyTree, DependencyNode } from '../types/index.js'
 import type { LicenseConflict } from '../types/index.js'
-import { normalizeSpdx, isStrongCopyleft, isNonCommercial } from './spdx-compat.js'
-
-const PROPRIETARY_PROJECT_LICENSES = new Set([
-  'MIT', 'ISC', 'BSD-2-Clause', 'BSD-3-Clause', 'Apache-2.0', 'Unlicense', '0BSD',
-])
+import { normalizeSpdx, isStrongCopyleft, isNonCommercial, PROPRIETARY_PROJECT_LICENSES } from './spdx-compat.js'
 
 function nodeToPackage(node: DependencyNode) {
   return {

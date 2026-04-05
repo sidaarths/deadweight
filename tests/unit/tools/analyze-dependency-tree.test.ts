@@ -57,9 +57,11 @@ describe('createAnalyzeDependencyTreeTool', () => {
     tool = createAnalyzeDependencyTreeTool(resolver)
     tmpDir = join(tmpdir(), `deadweight-test-${Date.now()}`)
     await mkdir(tmpDir, { recursive: true })
+    process.env['DEADWEIGHT_ROOT'] = tmpDir
   })
 
   afterEach(async () => {
+    delete process.env['DEADWEIGHT_ROOT']
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
     await cache.close()

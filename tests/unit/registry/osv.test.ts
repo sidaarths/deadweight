@@ -245,5 +245,40 @@ describe('OsvClient', () => {
       mockFetch.mockRejectedValue(new Error('Catastrophic failure'))
       await expect(client.getVulnerabilities('pkg', 'nodejs')).resolves.not.toThrow()
     })
+
+    it('maps CVSS score < 4.0 to LOW severity', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({
+          vulns: [{
+            id: 'TEST-LOW',
+            summary: 'Low severity vuln',
+            published: '2023-01-01T00:00:00Z',
+            // CVSS:3.1 AV:L/AC:H/PR:H/UI:R/S:U/C:L/I:N/A:N → score ~1.8
+            severity: [{ type: 'CVSS_V3', score: 'CVSS:3.1/AV:L/AC:H/PR:H/UI:R/S:U/C:L/I:N/A:N' }],
+          }],
+        }),
+      })
+
+      const result = await client.getVulnerabilities('pkg', 'nodejs')
+      expect(result[0].severity).toBe('LOW')
+    })
+
+    it('maps CVSS score 4.0-6.9 to MEDIUM severity', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({
+          vulns: [{
+            id: 'TEST-MED',
+            summary: 'Medium severity vuln',
+            published: '2023-01-01T00:00:00Z',
+            severity: [{ type: 'CVSS_V3', score: 'CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:L/I:N/A:N' }],
+          }],
+        }),
+      })
+
+      const result = await client.getVulnerabilities('pkg', 'nodejs')
+      expect(result[0].severity).toBe('MEDIUM')
+    })
   })
 })

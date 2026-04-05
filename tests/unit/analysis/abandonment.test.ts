@@ -209,4 +209,92 @@ describe('analyzeAbandonment', () => {
     const signals = await analyzeAbandonment({ tree })
     expect(signals.some(s => s.package.name === 'deep-ancient')).toBe(true)
   })
+
+  it('GitHub archived false branch — no signal when repo is not archived', async () => {
+    const mockGitHubClient = {
+      getRepoHealth: vi.fn().mockResolvedValue({
+        lastCommitDate: new Date(),
+        openIssues: 2,
+        totalIssues: 5,
+        contributorCount: 3,
+        isArchived: false,
+        stars: 500,
+      }),
+    }
+
+    const recentDate = new Date(NOW.getTime() - 30 * 24 * 60 * 60 * 1000)
+    const tree = makeTree([makeNode('active-repo', recentDate, null, 'https://github.com/org/active')])
+    const signals = await analyzeAbandonment({ tree, gitHubClient: mockGitHubClient as any })
+    const signal = signals.find(s => s.package.name === 'active-repo')
+    expect(signal).toBeUndefined()
+  })
+
+  it('CVE-only score >= 40 sets severity to warning (score < 70)', async () => {
+    // 2 HIGH CVEs = 40 points → score 40, >= 40 → warning
+    const mockOsvClient = {
+      getVulnerabilities: vi.fn().mockResolvedValue([
+        { id: 'CVE-H1', summary: 'High 1', severity: 'HIGH' as const, publishedAt: new Date() },
+        { id: 'CVE-H2', summary: 'High 2', severity: 'HIGH' as const, publishedAt: new Date() },
+      ]),
+    }
+
+    const recentDate = new Date(NOW.getTime() - 30 * 24 * 60 * 60 * 1000)
+    const tree = makeTree([makeNode('two-high-cves', recentDate)])
+    const signals = await analyzeAbandonment({ tree, osvClient: mockOsvClient as any })
+    const signal = signals.find(s => s.package.name === 'two-high-cves')
+    expect(signal).toBeDefined()
+    expect(signal?.severity).toBe('warning')
+    expect(signal?.score).toBe(40)
+  })
+
+  it('CVE-only score < 40 sets severity to advisory', async () => {
+    // 1 MEDIUM CVE = 10 points → score 10, < 40 → advisory
+    const mockOsvClient = {
+      getVulnerabilities: vi.fn().mockResolvedValue([
+        { id: 'CVE-M1', summary: 'Medium', severity: 'MEDIUM' as const, publishedAt: new Date() },
+      ]),
+    }
+
+    const recentDate = new Date(NOW.getTime() - 30 * 24 * 60 * 60 * 1000)
+    const tree = makeTree([makeNode('one-medium-cve', recentDate)])
+    const signals = await analyzeAbandonment({ tree, osvClient: mockOsvClient as any })
+    const signal = signals.find(s => s.package.name === 'one-medium-cve')
+    expect(signal).toBeDefined()
+    expect(signal?.severity).toBe('advisory')
+    expect(signal?.score).toBe(10)
+  })
+
+  it('CVE score promotes advisory staleness to warning when combined score >= 40', async () => {
+    // Package is ~500 days old (advisory), plus 2 HIGH CVEs (40pts) → combined >= 40 → warning
+    const mockOsvClient = {
+      getVulnerabilities: vi.fn().mockResolvedValue([
+        { id: 'CVE-H1', summary: 'High 1', severity: 'HIGH' as const, publishedAt: new Date() },
+        { id: 'CVE-H2', summary: 'High 2', severity: 'HIGH' as const, publishedAt: new Date() },
+      ]),
+    }
+
+    const advisoryDate = new Date(NOW.getTime() - 500 * 24 * 60 * 60 * 1000) // ~500 days → advisory
+    const tree = makeTree([makeNode('advisory-plus-cves', advisoryDate)])
+    const signals = await analyzeAbandonment({ tree, osvClient: mockOsvClient as any })
+    const signal = signals.find(s => s.package.name === 'advisory-plus-cves')
+    expect(signal).toBeDefined()
+    // advisory staleness alone gives score ~20; combined with 40 CVE pts exceeds 40 → warning
+    expect(signal?.severity).toBe('warning')
+  })
+
+  it('CVE score does not override already-critical severity', async () => {
+    // Deprecated package (score=90, severity=critical) + 1 HIGH CVE
+    // score stays capped, severity stays critical (not re-assigned by CVE branch)
+    const mockOsvClient = {
+      getVulnerabilities: vi.fn().mockResolvedValue([
+        { id: 'CVE-H1', summary: 'High', severity: 'HIGH' as const, publishedAt: new Date() },
+      ]),
+    }
+
+    const recentDate = new Date(NOW.getTime() - 30 * 24 * 60 * 60 * 1000)
+    const tree = makeTree([makeNode('deprecated-with-cve', recentDate, 'Use other-pkg instead')])
+    const signals = await analyzeAbandonment({ tree, osvClient: mockOsvClient as any })
+    const signal = signals.find(s => s.package.name === 'deprecated-with-cve')
+    expect(signal?.severity).toBe('critical')
+  })
 })

@@ -1,10 +1,10 @@
 import { z } from 'zod'
 import { validateUrl } from './http.js'
 
-export interface GitHubRepoHealth {
+interface GitHubRepoHealth {
   lastCommitDate: Date | null
   openIssues: number
-  totalIssues: number
+  totalIssues: number | null
   contributorCount: number
   isArchived: boolean
   stars: number
@@ -76,13 +76,16 @@ export class GitHubClient {
       const controller = new AbortController()
       const timeout = setTimeout(() => controller.abort(), 10_000)
 
-      const [repoRes, commitsRes, contributorsRes] = await Promise.all([
-        fetch(base, { headers, signal: controller.signal }),
-        fetch(`${base}/commits?per_page=1`, { headers, signal: controller.signal }),
-        fetch(`${base}/contributors?per_page=1&anon=false`, { headers, signal: controller.signal }),
-      ])
-
-      clearTimeout(timeout)
+      let repoRes: Response, commitsRes: Response, contributorsRes: Response
+      try {
+        ;[repoRes, commitsRes, contributorsRes] = await Promise.all([
+          fetch(base, { headers, signal: controller.signal }),
+          fetch(`${base}/commits?per_page=1`, { headers, signal: controller.signal }),
+          fetch(`${base}/contributors?per_page=1&anon=false`, { headers, signal: controller.signal }),
+        ])
+      } finally {
+        clearTimeout(timeout)
+      }
 
       if (!repoRes.ok) return null
 
@@ -110,7 +113,7 @@ export class GitHubClient {
       return {
         lastCommitDate,
         openIssues: repoData.open_issues_count,
-        totalIssues: repoData.open_issues_count,
+        totalIssues: null,
         contributorCount,
         isArchived: repoData.archived,
         stars: repoData.stargazers_count,

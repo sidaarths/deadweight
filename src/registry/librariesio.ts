@@ -1,7 +1,7 @@
 import { z } from 'zod'
-import { validateUrl } from './http.js'
+import type { HttpClient } from './http.js'
 
-export interface LibrariesIoData {
+interface LibrariesIoData {
   sourceRank: number | null
   dependentCount: number | null
 }
@@ -21,6 +21,8 @@ const LibrariesIoSchema = z.object({
 })
 
 export class LibrariesIoClient {
+  constructor(private readonly http: HttpClient) {}
+
   async getPackageData(
     name: string,
     ecosystem: string,
@@ -31,28 +33,16 @@ export class LibrariesIoClient {
     const rawPlatform = PLATFORM_MAP[ecosystem] ?? ecosystem
     const platform = encodeURIComponent(rawPlatform)
     const encodedName = encodeURIComponent(name)
-    // api_key in query string is required by libraries.io; ensure it never appears in error messages
-    const baseUrl = `https://libraries.io/api/${platform}/${encodedName}`
-    const url = `${baseUrl}?api_key=${apiKey}`
+    const url = `https://libraries.io/api/${platform}/${encodedName}`
 
     try {
-      validateUrl(baseUrl)
-      const controller = new AbortController()
-      const timeout = setTimeout(() => controller.abort(), 10_000)
-
-      let response: Response
-      try {
-        response = await fetch(url, { signal: controller.signal })
-      } finally {
-        clearTimeout(timeout)
-      }
-
-      if (!response.ok) return { sourceRank: null, dependentCount: null }
-
-      const data = LibrariesIoSchema.parse(await response.json())
+      const data = await this.http.fetchJson(url, {
+        headers: { Authorization: `Token ${apiKey}` },
+      })
+      const parsed = LibrariesIoSchema.parse(data)
       return {
-        sourceRank: data.rank ?? null,
-        dependentCount: data.dependents_count ?? null,
+        sourceRank: parsed.rank ?? null,
+        dependentCount: parsed.dependents_count ?? null,
       }
     } catch {
       return { sourceRank: null, dependentCount: null }

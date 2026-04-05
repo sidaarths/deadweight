@@ -13,7 +13,7 @@ export interface ResolveOptions {
   includeDevDependencies?: boolean
 }
 
-export interface TreeResolverOptions {
+interface TreeResolverOptions {
   registryClients: RegistryClient[]
 }
 

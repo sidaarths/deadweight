@@ -55,7 +55,7 @@ export function isCommerciallyCompatible(licenseA: string, licenseB: string): bo
   return !isNonCommercial(licenseA) && !isNonCommercial(licenseB)
 }
 
-const PROPRIETARY_PROJECT_LICENSES = new Set([
+export const PROPRIETARY_PROJECT_LICENSES = new Set([
   'MIT',
   'ISC',
   'BSD-2-Clause',

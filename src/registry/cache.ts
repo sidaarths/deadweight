@@ -16,7 +16,7 @@ export interface Cache {
   close(): Promise<void>
 }
 
-export interface CacheOptions {
+interface CacheOptions {
   dir: string
   ttlSeconds: number
 }

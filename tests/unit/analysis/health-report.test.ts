@@ -302,4 +302,57 @@ describe('buildHealthReport', () => {
     expect(report.generatedAt.getTime()).toBeGreaterThanOrEqual(before.getTime())
     expect(report.generatedAt.getTime()).toBeLessThanOrEqual(after.getTime())
   })
+
+  it('consolidation with zero packages is filtered out (null from consolidationToSignal)', () => {
+    // Consolidation with empty packages array → consolidationToSignal returns null → filtered
+    const emptyConsolidation: Consolidation = {
+      category: 'http-client',
+      packages: [],
+      recommendation: 'axios',
+      reason: 'No packages',
+      estimatedSizeSavingsBytes: null,
+    }
+    const report = buildHealthReport({
+      maintainerSignals: [],
+      abandonmentSignals: [],
+      licenseConflicts: [],
+      consolidations: [emptyConsolidation],
+      tree: makeTree(),
+    })
+    // Should not appear in advisory since it was filtered
+    expect(report.advisory).toHaveLength(0)
+  })
+
+  it('deduplication keeps higher score when severity is equal', () => {
+    // Two signals for the same package+type, same severity, different score
+    const lowScore = makeSignal('single_maintainer', 'warning', 'pkg-x', 30)
+    const highScore = makeSignal('single_maintainer', 'warning', 'pkg-x', 60)
+    const report = buildHealthReport({
+      maintainerSignals: [lowScore, highScore],
+      abandonmentSignals: [],
+      licenseConflicts: [],
+      consolidations: [],
+      tree: makeTree(),
+    })
+    const allSignals = [...report.critical, ...report.warning, ...report.advisory]
+    const pkgSignals = allSignals.filter(s => s.package.name === 'pkg-x')
+    expect(pkgSignals).toHaveLength(1)
+    expect(pkgSignals[0].score).toBe(60)
+  })
+
+  it('deduplication keeps higher severity over lower', () => {
+    const warningFirst = makeSignal('single_maintainer', 'warning', 'pkg-y', 40)
+    const criticalSecond = makeSignal('single_maintainer', 'critical', 'pkg-y', 60)
+    const report = buildHealthReport({
+      maintainerSignals: [warningFirst, criticalSecond],
+      abandonmentSignals: [],
+      licenseConflicts: [],
+      consolidations: [],
+      tree: makeTree(),
+    })
+    const allSignals = [...report.critical, ...report.warning, ...report.advisory]
+    const pkgSignals = allSignals.filter(s => s.package.name === 'pkg-y')
+    expect(pkgSignals).toHaveLength(1)
+    expect(pkgSignals[0].severity).toBe('critical')
+  })
 })

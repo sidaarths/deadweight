@@ -84,6 +84,7 @@ async function setupStack() {
   tool = createAnalyzeDependencyTreeTool(resolver)
   tmpDir = join(tmpdir(), `deadweight-handler-test-${Date.now()}`)
   await mkdir(tmpDir, { recursive: true })
+  process.env['DEADWEIGHT_ROOT'] = tmpDir
 }
 
 function mockAllNpm() {
@@ -107,6 +108,7 @@ describe('Journey 2: Tool handler integration', () => {
   })
 
   afterEach(async () => {
+    delete process.env['DEADWEIGHT_ROOT']
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
     await cache.close()
